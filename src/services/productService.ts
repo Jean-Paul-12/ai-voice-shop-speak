@@ -101,6 +101,9 @@ export const seedProducts = async () => {
       const textForEmbedding = `${product.description} ${product.features.join(' ')}`;
       const embedding = await generateEmbedding(textForEmbedding);
       
+      // Convert number array to string for storage
+      const embeddingString = `[${embedding.join(',')}]`;
+      
       const { error } = await supabase
         .from('products')
         .insert({
@@ -108,7 +111,7 @@ export const seedProducts = async () => {
           image: product.image,
           description: product.description,
           features: product.features,
-          embedding
+          embedding: embeddingString
         });
         
       if (error) {
@@ -123,18 +126,26 @@ export const seedProducts = async () => {
 };
 
 export const searchProducts = async (queryEmbedding: number[]): Promise<Product[]> => {
-  const { data, error } = await supabase.rpc('match_products', {
-    query_embedding: queryEmbedding,
-    match_threshold: 0.5,
-    match_count: 4
-  });
-  
-  if (error) {
-    console.error('Error searching products:', error);
+  try {
+    // Call the match_products function using the edge function
+    const { data, error } = await supabase.functions.invoke('match-products', {
+      body: {
+        query_embedding: queryEmbedding,
+        match_threshold: 0.5,
+        match_count: 4
+      }
+    });
+    
+    if (error) {
+      console.error('Error searching products:', error);
+      return [];
+    }
+    
+    return data || [];
+  } catch (error) {
+    console.error('Error in searchProducts:', error);
     return [];
   }
-  
-  return data || [];
 };
 
 export const generateAIResponse = async (query: string): Promise<string> => {
