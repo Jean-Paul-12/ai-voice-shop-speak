@@ -1,77 +1,11 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Mic, MicOff, Loader2 } from 'lucide-react';
+import { Mic, MicOff, Loader2, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Product {
-  id: string;
-  name: string;
-  image: string;
-  description: string;
-  features: string[];
-}
-
-const MOCK_PRODUCTS: Product[] = [
-  {
-    id: '1',
-    name: 'iPhone',
-    image: 'https://i.imgur.com/pLVNsJK.png',
-    description: 'The iPhone is Apple\'s flagship smartphone, known for elegant design, integrated ecosystem, and powerful performance. It offers a smooth, secure, and optimized user experience.',
-    features: [
-      'Super Retina XDR display',
-      'A16 Bionic chip',
-      'Advanced camera system with Night Mode and 4K',
-      'Face ID',
-      '5G & Wi-Fi 6',
-      'IP68 water and dust resistance',
-      'iOS with regular updates'
-    ]
-  },
-  {
-    id: '2',
-    name: 'iPad',
-    image: 'https://i.imgur.com/F0VFx7n.jpeg',
-    description: 'The iPad is Apple\'s versatile tablet designed for education, work, and creativity. High-resolution display and Apple Pencil support.',
-    features: [
-      'Liquid Retina 10.9" display',
-      'A14 Bionic chip',
-      'Apple Pencil + keyboard support',
-      'iPadOS multitasking',
-      'Long battery life (10h)'
-    ]
-  },
-  {
-    id: '3',
-    name: 'MacBook Pro',
-    image: 'https://i.imgur.com/CLR0nMw.jpeg',
-    description: 'MacBook Pro is Apple\'s most advanced laptop, perfect for developers and creators.',
-    features: [
-      'M2 Pro/Max chip',
-      'Liquid Retina XDR display',
-      'Up to 96 GB RAM & 8 TB SSD',
-      '22h battery life',
-      'Touch ID',
-      'macOS'
-    ]
-  },
-  {
-    id: '4',
-    name: 'AirPods',
-    image: 'https://i.imgur.com/Dh8ntZd.jpeg',
-    description: 'Wireless smart earbuds with immersive audio and instant Apple ecosystem connection.',
-    features: [
-      'Spatial Audio',
-      'Noise Cancellation',
-      'Transparency mode',
-      'H1/H2 chip',
-      'Touch controls',
-      '24h battery with case'
-    ]
-  }
-];
+import { useSpeechSynthesis } from '@/hooks/useSpeechSynthesis';
+import { seedProducts, generateEmbedding, searchProducts, generateAIResponse, Product } from '@/services/productService';
 
 declare global {
   interface Window {
@@ -85,12 +19,18 @@ const Index = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [transcript, setTranscript] = useState('');
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [conversationHistory, setConversationHistory] = useState<Array<{text: string, isUser: boolean}>>([]);
+  const [aiResponse, setAiResponse] = useState('');
   const { toast } = useToast();
+  const { speak, stop, isSpeaking } = useSpeechSynthesis();
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recognitionRef = useRef<any>(null);
 
   useEffect(() => {
+    // Seed products on component mount
+    seedProducts().catch(console.error);
+
     // Initialize Speech Recognition
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (SpeechRecognition) {
@@ -128,22 +68,18 @@ const Index = () => {
 
   const startRecording = async () => {
     try {
-      // Request microphone access
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       
-      // Start speech recognition
       if (recognitionRef.current) {
         recognitionRef.current.start();
       }
 
-      // Start media recording
       const mediaRecorder = new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
 
       setIsRecording(true);
       setTranscript('');
-      setSelectedProduct(null);
       
       toast({
         title: "🎙️ Listening...",
@@ -186,36 +122,49 @@ const Index = () => {
     setIsProcessing(true);
     
     try {
-      // Simulate AI processing delay
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Add user query to conversation history
+      setConversationHistory(prev => [...prev, { text: query, isUser: true }]);
       
-      // Simple keyword matching for demo purposes
-      // In production, this would use Gemini Live + RAG with embeddings
-      const lowerQuery = query.toLowerCase();
+      // Generate embedding for the query
+      const queryEmbedding = await generateEmbedding(query);
+      
+      // Search for products using vector similarity
+      const products = await searchProducts(queryEmbedding);
+      
+      let responseText = '';
       let matchedProduct: Product | null = null;
 
-      if (lowerQuery.includes('phone') || lowerQuery.includes('iphone') || lowerQuery.includes('call') || lowerQuery.includes('mobile')) {
-        matchedProduct = MOCK_PRODUCTS[0]; // iPhone
-      } else if (lowerQuery.includes('tablet') || lowerQuery.includes('ipad') || lowerQuery.includes('drawing') || lowerQuery.includes('pencil')) {
-        matchedProduct = MOCK_PRODUCTS[1]; // iPad
-      } else if (lowerQuery.includes('laptop') || lowerQuery.includes('macbook') || lowerQuery.includes('computer') || lowerQuery.includes('programming')) {
-        matchedProduct = MOCK_PRODUCTS[2]; // MacBook Pro
-      } else if (lowerQuery.includes('headphones') || lowerQuery.includes('airpods') || lowerQuery.includes('music') || lowerQuery.includes('earbuds')) {
-        matchedProduct = MOCK_PRODUCTS[3]; // AirPods
+      if (products.length > 0) {
+        matchedProduct = products[0];
+        setSelectedProduct(matchedProduct);
+        
+        // Generate AI response about the product
+        const productQuery = `User asked: "${query}". Recommend the ${matchedProduct.name}: ${matchedProduct.description}. Features: ${matchedProduct.features.join(', ')}. Keep it conversational and helpful.`;
+        responseText = await generateAIResponse(productQuery);
+        
+        toast({
+          title: "🎯 Product Found!",
+          description: `Found the perfect match: ${matchedProduct.name}`,
+        });
       } else {
-        // Default to a random product
-        matchedProduct = MOCK_PRODUCTS[Math.floor(Math.random() * MOCK_PRODUCTS.length)];
+        // Generate a general helpful response
+        responseText = await generateAIResponse(`User asked: "${query}". Help them understand our product options or ask for more specific requirements.`);
       }
 
-      setSelectedProduct(matchedProduct);
+      setAiResponse(responseText);
       
-      toast({
-        title: "🎯 Product Found!",
-        description: `Found the perfect match: ${matchedProduct.name}`,
-      });
+      // Add AI response to conversation history
+      setConversationHistory(prev => [...prev, { text: responseText, isUser: false }]);
+      
+      // Speak the response
+      speak(responseText);
 
     } catch (error) {
       console.error('Error processing voice query:', error);
+      const errorMessage = "I'm sorry, I had trouble processing your request. Could you please try again?";
+      setAiResponse(errorMessage);
+      speak(errorMessage);
+      
       toast({
         title: "Processing Error",
         description: "Failed to process your request. Please try again.",
@@ -234,6 +183,14 @@ const Index = () => {
     }
   };
 
+  const toggleSpeech = () => {
+    if (isSpeaking) {
+      stop();
+    } else if (aiResponse) {
+      speak(aiResponse);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-blue-100 to-blue-200 flex flex-col items-center justify-center p-6">
       {/* Animated background elements */}
@@ -242,7 +199,7 @@ const Index = () => {
         <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-indigo-400/10 rounded-full blur-3xl animate-pulse delay-1000"></div>
       </div>
 
-      <div className="relative z-10 max-w-2xl w-full space-y-8">
+      <div className="relative z-10 max-w-4xl w-full space-y-8">
         {/* Title */}
         <div className="text-center space-y-4">
           <h1 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 bg-clip-text text-transparent">
@@ -253,39 +210,51 @@ const Index = () => {
           </p>
         </div>
 
-        {/* Voice Button */}
+        {/* Voice Controls */}
         <div className="flex flex-col items-center space-y-4">
-          <Button
-            onClick={handleVoiceButtonClick}
-            disabled={isProcessing}
-            className={`relative w-48 h-48 rounded-full text-2xl font-bold transition-all duration-300 transform hover:scale-105 ${
-              isRecording 
-                ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse' 
-                : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
-            } ${isProcessing ? 'opacity-75' : ''} shadow-2xl`}
-          >
-            {isProcessing ? (
-              <div className="flex flex-col items-center space-y-2">
-                <Loader2 className="w-8 h-8 animate-spin" />
-                <span className="text-base">Processing...</span>
-              </div>
-            ) : isRecording ? (
-              <div className="flex flex-col items-center space-y-2">
-                <MicOff className="w-8 h-8" />
-                <span className="text-base">Stop Recording</span>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center space-y-2">
-                <Mic className="w-8 h-8" />
-                <span className="text-base">🎙 Speak to Shop</span>
-              </div>
+          <div className="flex gap-4 items-center">
+            <Button
+              onClick={handleVoiceButtonClick}
+              disabled={isProcessing}
+              className={`relative w-48 h-48 rounded-full text-2xl font-bold transition-all duration-300 transform hover:scale-105 ${
+                isRecording 
+                  ? 'bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 animate-pulse' 
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800'
+              } ${isProcessing ? 'opacity-75' : ''} shadow-2xl`}
+            >
+              {isProcessing ? (
+                <div className="flex flex-col items-center space-y-2">
+                  <Loader2 className="w-8 h-8 animate-spin" />
+                  <span className="text-base">Processing...</span>
+                </div>
+              ) : isRecording ? (
+                <div className="flex flex-col items-center space-y-2">
+                  <MicOff className="w-8 h-8" />
+                  <span className="text-base">Stop Recording</span>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center space-y-2">
+                  <Mic className="w-8 h-8" />
+                  <span className="text-base">🎙 Speak to Shop</span>
+                </div>
+              )}
+              
+              {isRecording && (
+                <div className="absolute inset-0 rounded-full border-4 border-red-300 animate-ping"></div>
+              )}
+            </Button>
+
+            {aiResponse && (
+              <Button
+                onClick={toggleSpeech}
+                variant="outline"
+                size="lg"
+                className="bg-white/80 hover:bg-white/90"
+              >
+                {isSpeaking ? <VolumeX className="w-6 h-6" /> : <Volume2 className="w-6 h-6" />}
+              </Button>
             )}
-            
-            {/* Recording indicator */}
-            {isRecording && (
-              <div className="absolute inset-0 rounded-full border-4 border-red-300 animate-ping"></div>
-            )}
-          </Button>
+          </div>
 
           {/* Transcript display */}
           {transcript && (
@@ -296,12 +265,25 @@ const Index = () => {
           )}
         </div>
 
+        {/* AI Response */}
+        {aiResponse && (
+          <div className="bg-white/90 backdrop-blur-sm p-6 rounded-lg border border-blue-200 shadow-lg">
+            <div className="flex items-start space-x-3">
+              <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                🤖
+              </div>
+              <div className="flex-1">
+                <p className="text-gray-800 leading-relaxed">{aiResponse}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Product Card */}
         {selectedProduct && (
           <Card className="mt-8 overflow-hidden bg-white/90 backdrop-blur-sm border-blue-200 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-[1.02]">
             <CardContent className="p-0">
               <div className="md:flex">
-                {/* Product Image */}
                 <div className="md:w-1/3 bg-gradient-to-br from-blue-50 to-indigo-100 p-6 flex items-center justify-center">
                   <img 
                     src={selectedProduct.image} 
@@ -314,7 +296,6 @@ const Index = () => {
                   />
                 </div>
                 
-                {/* Product Details */}
                 <div className="md:w-2/3 p-6 space-y-4">
                   <div className="space-y-2">
                     <h2 className="text-2xl font-bold text-blue-800">{selectedProduct.name}</h2>
@@ -341,10 +322,30 @@ const Index = () => {
           </Card>
         )}
 
+        {/* Conversation History */}
+        {conversationHistory.length > 0 && (
+          <div className="bg-white/80 backdrop-blur-sm p-6 rounded-lg border border-blue-200 shadow-lg">
+            <h3 className="text-lg font-semibold text-blue-800 mb-4">Conversation</h3>
+            <div className="space-y-3 max-h-64 overflow-y-auto">
+              {conversationHistory.map((message, index) => (
+                <div key={index} className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                    message.isUser 
+                      ? 'bg-blue-500 text-white' 
+                      : 'bg-gray-200 text-gray-800'
+                  }`}>
+                    <p className="text-sm">{message.text}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Instructions */}
-        {!selectedProduct && !transcript && (
+        {!selectedProduct && !transcript && conversationHistory.length === 0 && (
           <div className="text-center text-blue-600/70 text-sm max-w-md mx-auto">
-            <p>Click the microphone button and describe what you're looking for. Our AI will find the perfect product for you!</p>
+            <p>Click the microphone button and describe what you're looking for. Our AI will find the perfect product for you and provide detailed responses!</p>
           </div>
         )}
       </div>
