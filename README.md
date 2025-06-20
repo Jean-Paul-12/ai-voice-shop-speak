@@ -1,73 +1,98 @@
-# Welcome to your Lovable project
+<p align="center">
+  <img src="https://i.imgur.com/4Tppt0F.jpeg" alt="IA Voice Marketplace Logo" />
+</p>
 
-## Project info
+# 🛒 Buy n Large Voice Agent MVP  
+## Proyecto: IA VOICE Marketplace
 
-**URL**: https://lovable.dev/projects/bf554657-310d-433b-a4df-c4b2e8461acf
+---
 
-## How can I edit this code?
+## 📌 Introducción
 
-There are several ways of editing your application.
+**IA VOICE Marketplace** es un proyecto de tipo **Marketplace de productos tecnológicos**, cuya principal innovación es la integración de un **asistente de voz inteligente**. A diferencia de las tiendas tradicionales, este asistente te recomienda productos de nuestro inventario según tus necesidades, resuelve tus dudas y te guía durante todo el proceso de compra, proporcionando una experiencia conversacional única.
 
-**Use Lovable**
+---
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/bf554657-310d-433b-a4df-c4b2e8461acf) and start prompting.
+## 🧩 Desarrollo
 
-Changes made via Lovable will be committed automatically to this repo.
+### 🖼️ Frontend
 
-**Use your preferred IDE**
+El diseño del frontend fue realizado con **Lovable**, solicitando un estilo **moderno, sobrio, con buenas prácticas de UX/UI**, utilizando tonos frescos y una interfaz intuitiva. Las tecnologías empleadas fueron:
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- **React**
+- **Vite**
+- **Tailwind CSS**
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+### 🧠 Backend
 
-Follow these steps:
+Para el backend se utilizó **Python**, encargado de conectar y gestionar el SDK de **Gemini Live**.  
+El código fue cuidadosamente comentado para facilitar su comprensión, siguiendo principios de limpieza y evitando la duplicación innecesaria.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+---
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+## 🚧 Retos y bloqueos
 
-# Step 3: Install the necessary dependencies.
-npm i
+Desde el inicio supe que esta prueba sería un gran reto, ya que **no estaba familiarizado con varias de las herramientas** requeridas. Aprendí a través del ensayo y error, y aquí comparto algunos de los principales bloqueos:
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+### 1. Créditos limitados en Lovable
+
+Al intentar crear una versión robusta del Marketplace (con carrito, login de administrador y panel de parametrización), no contaba con que **la cuenta gratuita de Lovable solo permite 5 consultas diarias**. Esto me obligó a crear una segunda cuenta, perdiendo todo el trabajo inicial. Aunque fue frustrante, logré reconstruir una versión más simple y efectiva.
+
+### 2. Errores con el SDK de Gemini
+
+La integración con **Gemini Live** fue complicada. La consola arrojaba errores de "saldo insuficiente", incluso después de registrar una tarjeta para ampliar la cuota gratuita. Aunque logré implementar parcialmente el SDK, **el WebSocket dejó de responder**, bloqueando el flujo de conversación.
+
+### 3. Fallo al integrar la API de OpenAI
+
+Intenté usar la **API de OpenAI** para que el asistente tuviera respuestas más naturales y actualizadas, pero esto provocó múltiples errores y conflictos en el código. Por esta razón, decidí **posponer su integración hasta solucionar por completo la conexión con Gemini Live**.
+
+---
+
+## 📚 Lo aprendido
+
+Después de las dificultades vinieron los aprendizajes:
+
+- Esta prueba fue **muy entretenida y enriquecedora**. Aunque hubo frustraciones, disfruté el proceso y me motivó a seguir aprendiendo sobre IA.
+- Me sorprendió el **potencial de las herramientas de inteligencia artificial** y su aplicación práctica en soluciones reales.
+- Este proyecto me hizo valorar la importancia de la planificación, el control de versiones y las pruebas continuas.
+
+---
+
+## ⚙️ ¿Cómo ejecutar la aplicación en tu entorno local?
+
+> Si deseas trabajar localmente con tu propio editor de código (IDE), puedes clonar el repositorio y realizar cambios. Estos cambios también se reflejarán en Lovable.  
+> Solo necesitas tener **Node.js** y **npm** instalados. Puedes usar [nvm para instalarlo](https://github.com/nvm-sh/nvm#installing-and-updating).
+
+### 🔧 Ambiente Frontend
+
+#### Pasos:
+
+```bash
+# Paso 1: Clona el repositorio desde la URL del proyecto
+git clone <TU_URL_DEL_REPOSITORIO>
+
+# Paso 2: Entra en la carpeta del proyecto
+cd <NOMBRE_DEL_PROYECTO>
+
+# Paso 3: Instala las dependencias necesarias
+npm install
+
+# Paso 4: Ejecuta el servidor de desarrollo
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+### 🔌 Ambiente Backend
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+#### Pasos:
 
-**Use GitHub Codespaces**
+```bash
+# Instala las dependencias del proyecto
+pip install -r requirements.txt
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Instala el SDK de Gemini Live junto con websockets y pydub
+pip install git+https://github.com/googleapis/python-genai.git websockets pydub
+```
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/bf554657-310d-433b-a4df-c4b2e8461acf) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+🙌 ¡Gracias por leer!
+Si tienes alguna duda o deseas colaborar, no dudes en contactarme.
+Este fue un proyecto desafiante, pero lleno de aprendizajes y ganas de seguir explorando el mundo de la inteligencia artificial aplicada y poder tener una oportunidad de estar en un equipo como **FAIL FAST** 🚀.

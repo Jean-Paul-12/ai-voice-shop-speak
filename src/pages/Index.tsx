@@ -14,6 +14,88 @@ interface Product {
   features: string[];
 }
 
+const connectToGemini = async (
+  setTranscript: Function,
+  setSelectedProduct: Function,
+  toast: Function,
+  transcript?: string
+) => {
+  const socket = new WebSocket("ws://localhost:9084");
+
+  socket.onopen = () => {
+    console.log("✅ Connected to Gemini");
+
+    // Enviamos configuración de sesión
+    socket.send(JSON.stringify({
+      config: {
+        voice: true,
+        lang: 'en-US'
+      }
+    }));
+
+    // Enviamos la transcripción si existe
+    if (transcript && transcript.trim() !== "") {
+      console.log("📤 Sending transcript to Gemini:", transcript);
+      socket.send(JSON.stringify({ text: transcript }));
+    }
+  };
+
+  socket.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.transcription?.sender === "User" && data.transcription.finished) {
+      const userText = data.transcription.text;
+      console.log("🗣 Usuario dijo:", userText);
+      setTranscript(userText);
+
+      // Opcional: procesar producto también si viene por transcripción
+      const lowerQuery = userText.toLowerCase();
+      let matchedProduct = null;
+
+      if (lowerQuery.includes('phone') || lowerQuery.includes('iphone')) {
+        matchedProduct = MOCK_PRODUCTS[0];
+      } else if (lowerQuery.includes('ipad')) {
+        matchedProduct = MOCK_PRODUCTS[1];
+      } else if (lowerQuery.includes('macbook')) {
+        matchedProduct = MOCK_PRODUCTS[2];
+      } else if (lowerQuery.includes('airpods')) {
+        matchedProduct = MOCK_PRODUCTS[3];
+      }
+
+      if (matchedProduct) {
+        setSelectedProduct(matchedProduct);
+        toast({
+          title: "🎯 Product Found!",
+          description: `Found the perfect match: ${matchedProduct.name}`,
+        });
+      }
+    }
+
+    // Si llega audio desde Gemini (respuesta hablada)
+    if (data.audio) {
+      const audioBlob = new Blob(
+        [Uint8Array.from(atob(data.audio), c => c.charCodeAt(0))],
+        { type: 'audio/mp3' }
+      );
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+      audio.play();
+    }
+  };
+
+  socket.onerror = (err) => {
+    console.error("❌ WebSocket error:", err);
+    toast({
+      title: "Connection error",
+      description: "Could not connect to the voice assistant",
+      variant: "destructive"
+    });
+  };
+
+  return socket;
+};
+
+
 const MOCK_PRODUCTS: Product[] = [
   {
     id: '1',
@@ -134,6 +216,7 @@ const Index = () => {
       // Start speech recognition
       if (recognitionRef.current) {
         recognitionRef.current.start();
+        connectToGemini(setTranscript, setSelectedProduct, toast, transcript);
       }
 
       // Start media recording

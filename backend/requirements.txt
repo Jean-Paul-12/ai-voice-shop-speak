@@ -1,0 +1,3 @@
+flask
+flask-cors
+#pip install git+https://github.com/googleapis/python-genai.git websockets pydub
