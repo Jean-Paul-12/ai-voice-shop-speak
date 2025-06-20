@@ -1,0 +1,4 @@
+flask
+flask-cors
+python-dotenv
+#pip install git+https://github.com/googleapis/python-genai.git websockets pydub
