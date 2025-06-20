@@ -6,14 +6,16 @@ from google import genai
 from google.genai import types
 import websockets.legacy.server
 from websockets.legacy.server import WebSocketServerProtocol
+from dotenv import load_dotenv
 
-# Configura tu API KEY de Gemini
-os.environ['GOOGLE_API_KEY'] = 'AIzaSyATMp4aqvo_PfYeBQvHOkFKXa1XZp_98U8'
-MODEL = "models/gemini-2.5-flash-preview-native-audio-dialog" 
+load_dotenv()
+
+MODEL = "models/gemini-2.5-flash-preview-native-audio-dialog"
 
 client = genai.Client(
-    api_key=os.environ["GOOGLE_API_KEY"]
+    api_key=os.getenv("GOOGLE_API_KEY")
 )
+
 
 async def gemini_session_handler(websocket: WebSocketServerProtocol):
     print("🎙️ Conexión de usuario entrante...")
